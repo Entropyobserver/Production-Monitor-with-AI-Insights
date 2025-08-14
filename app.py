@@ -117,7 +117,8 @@ def load_css():
 
 @st.cache_resource
 def init_ai():
-    api_key = st.secrets.get("GOOGLE_API_KEY", "")
+    import os
+    api_key = os.environ.get("GOOGLE_API_KEY", "")  
     if api_key:
         genai.configure(api_key=api_key)
         return genai.GenerativeModel('gemini-1.5-flash')
