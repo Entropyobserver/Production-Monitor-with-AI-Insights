@@ -126,10 +126,21 @@ def load_css():
 
 @st.cache_resource
 def init_ai():
-    api_key = st.secrets.get("GOOGLE_API_KEY", "")
+    """Initialize AI model with proper error handling for secrets"""
+    try:
+        # Try to get API key from Streamlit secrets
+        api_key = st.secrets.get("GOOGLE_API_KEY", "")
+    except (FileNotFoundError, KeyError, AttributeError):
+        # If secrets file doesn't exist or key not found, try environment variable
+        api_key = os.environ.get("GOOGLE_API_KEY", "")
+    
     if api_key:
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-1.5-flash')
+        try:
+            genai.configure(api_key=api_key)
+            return genai.GenerativeModel('gemini-1.5-flash')
+        except Exception as e:
+            st.error(f"AI configuration failed: {str(e)}")
+            return None
     return None
 
 @st.cache_data
@@ -330,7 +341,7 @@ def detect_outliers(df):
 
 def generate_ai_summary(model, df, stats, outliers):
     if not model:
-        return "AI analysis unavailable - API key not configured"
+        return "AI analysis unavailable - Google API key not configured. Please set the GOOGLE_API_KEY environment variable or in Streamlit secrets to enable AI insights."
     try:
         materials = [k for k in stats.keys() if k != '_total_']
         context_parts = [
@@ -404,7 +415,7 @@ Keep the entire analysis concise and under 300 words.
 
 def query_ai(model, stats, question, df=None):
     if not model:
-        return "AI assistant not available"
+        return "AI assistant not available - Please configure Google API key"
     context_parts = [
         "Production Data Summary:",
         *[f"- {mat.title()}: {info['total']:,.0f}kg ({info['percentage']:.1f}%)" 
@@ -424,8 +435,8 @@ def query_ai(model, stats, question, df=None):
     try:
         response = model.generate_content(context)
         return response.text
-    except:
-        return "Error getting AI response"
+    except Exception as e:
+        return f"Error getting AI response: {str(e)}"
 
 def save_plotly_as_image(fig, filename):
     try:
@@ -655,7 +666,7 @@ def create_enhanced_pdf_report(df, stats, outliers, model=None):
     else:
         elements.append(PageBreak())
         elements.append(Paragraph("AI Analysis", subtitle_style))
-        elements.append(Paragraph("AI analysis unavailable - API key not configured. Please configure Google AI API key to enable intelligent insights.", styles['Normal']))
+        elements.append(Paragraph("AI analysis unavailable - Google API key not configured. Please set the GOOGLE_API_KEY environment variable or configure it in Streamlit secrets to enable intelligent insights.", styles['Normal']))
     elements.append(Spacer(1, 30))
     footer_text = f"""
     <para alignment="center">
@@ -735,6 +746,7 @@ def add_export_section(df, stats, outliers, model):
             mime="text/csv",
             key="download_raw_btn"
         )
+
 def main():
     load_css()
     st.markdown("""
@@ -772,6 +784,7 @@ def main():
             st.success("🤖 AI Assistant Ready")
         else:
             st.warning("⚠️ AI Assistant Unavailable")
+            st.info("To enable AI features, set GOOGLE_API_KEY as environment variable or in Streamlit secrets")
     df = st.session_state.current_df
     stats = st.session_state.current_stats
     if uploaded_file:
@@ -888,6 +901,27 @@ def main():
                     answer = query_ai(model, stats, custom_question, df)
                     st.success(f"**Q:** {custom_question}")
                     st.write(f"**A:** {answer}")
+        else:
+            st.markdown('<div class="section-header">🤖 AI Configuration</div>', unsafe_allow_html=True)
+            st.info("""
+            **AI Assistant is currently unavailable.**
+            
+            To enable AI features, you need to configure your Google AI API key:
+            
+            **Option 1: Environment Variable**
+            ```bash
+            export GOOGLE_API_KEY="your_api_key_here"
+            ```
+            
+            **Option 2: Streamlit Secrets**
+            Create `.streamlit/secrets.toml`:
+            ```toml
+            GOOGLE_API_KEY = "your_api_key_here"
+            ```
+            
+            **Option 3: Azure App Service**
+            Set environment variable in Azure portal under Configuration > Application settings.
+            """)
     else:
         st.markdown('<div class="section-header">📖 How to Use This Platform</div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
