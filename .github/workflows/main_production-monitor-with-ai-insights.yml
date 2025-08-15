@@ -1,6 +1,5 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
+# 1. Updated GitHub Actions workflow
+# File: .github/workflows/main_production-monitor-with-ai-insights.yml
 
 name: Build and deploy Python app to Azure Web App - Production-Monitor-with-AI-Insights
 
@@ -14,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +40,11 @@ jobs:
           echo "python-3.10" > runtime.txt
           echo "[config]" > .deployment
           echo "SCM_DO_BUILD_DURING_DEPLOYMENT=true" >> .deployment
+          # Create .streamlit directory if it doesn't exist
+          mkdir -p .streamlit
+          echo 'GOOGLE_API_KEY = ""' > .streamlit/secrets.toml.template
         
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+      # Optional: Add step to run tests here
 
       - name: Zip artifact for deployment
         run: |
@@ -58,8 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       - name: Download artifact from build job
@@ -85,3 +87,41 @@ jobs:
         with:
           app-name: 'Production-Monitor-with-AI-Insights'
           slot-name: 'Production'
+
+---
+
+# 2. Streamlit Configuration
+# File: .streamlit/config.toml
+
+[server]
+headless = true
+port = 8000
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#1E40AF"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#1F2937"
+
+---
+
+# 3. Secrets Template
+# File: .streamlit/secrets.toml.template
+# Copy this to .streamlit/secrets.toml and add your actual API key
+
+GOOGLE_API_KEY = "your_google_ai_api_key_here"
+
+---
+
+# 4. Environment Variables for Azure App Service
+# Set these in Azure Portal > Configuration > Application Settings
+
+GOOGLE_API_KEY=your_google_ai_api_key_here
+STREAMLIT_SERVER_HEADLESS=true
+STREAMLIT_SERVER_PORT=8000
+STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
