@@ -1,6 +1,4 @@
-# 1. Updated GitHub Actions workflow
 # File: .github/workflows/main_production-monitor-with-ai-insights.yml
-
 name: Build and deploy Python app to Azure Web App - Production-Monitor-with-AI-Insights
 
 on:
@@ -27,28 +25,75 @@ jobs:
         run: |
           python -m venv antenv
           source antenv/bin/activate
-      
+          
       - name: Install dependencies
         run: |
           source antenv/bin/activate
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Create deployment files
+          
+      - name: Create Azure deployment files
         run: |
-          echo "python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0 --server.headless true" > startup.txt
-          echo "python-3.10" > runtime.txt
-          echo "[config]" > .deployment
-          echo "SCM_DO_BUILD_DURING_DEPLOYMENT=true" >> .deployment
-          # Create .streamlit directory if it doesn't exist
+          # Create startup command file
+          echo "python -m streamlit run app.py --server.port=8000 --server.address=0.0.0.0 --server.headless=true" > startup.txt
+          
+          # Create .deployment file for Azure
+          cat > .deployment << EOF
+          [config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT=true
+          EOF
+          
+          # Create web.config for proper Azure handling
+          cat > web.config << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
+              </handlers>
+              <httpPlatform processPath="python" arguments="-m streamlit run app.py --server.port=%HTTP_PLATFORM_PORT% --server.address=0.0.0.0 --server.headless=true" stdoutLogEnabled="true" stdoutLogFile="D:\home\LogFiles\python_stdout.log" startupTimeLimit="60" requestTimeout="00:04:00"/>
+            </system.webServer>
+          </configuration>
+          EOF
+          
+          # Create oryx build manifest
+          cat > oryx-manifest.toml << EOF
+          [build]
+          virtualenv_name = "antenv"
+          packages_dir = "__oryx_packages__"
+          
+          [python]
+          version = "3.10"
+          
+          [deploy]
+          startup_file = "startup.txt"
+          EOF
+          
+          # Create .streamlit directory and config
           mkdir -p .streamlit
+          cat > .streamlit/config.toml << EOF
+          [server]
+          headless = true
+          port = 8000
+          enableCORS = false
+          enableXsrfProtection = false
+          
+          [browser]
+          gatherUsageStats = false
+          
+          [theme]
+          primaryColor = "#1E40AF"
+          backgroundColor = "#FFFFFF"
+          secondaryBackgroundColor = "#F8FAFC"
+          textColor = "#1F2937"
+          EOF
+          
+          # Create secrets template (will be populated by startup script)
           echo 'GOOGLE_API_KEY = ""' > .streamlit/secrets.toml.template
-        
-      # Optional: Add step to run tests here
 
       - name: Zip artifact for deployment
         run: |
-          zip -r release.zip . -x "*.git*" "__pycache__/*" "*.pyc" "antenv/*"
+          zip -r release.zip . -x "*.git*" "__pycache__/*" "*.pyc" "antenv/*" ".venv/*" "venv/*"
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
@@ -87,41 +132,3 @@ jobs:
         with:
           app-name: 'Production-Monitor-with-AI-Insights'
           slot-name: 'Production'
-
----
-
-# 2. Streamlit Configuration
-# File: .streamlit/config.toml
-
-[server]
-headless = true
-port = 8000
-enableCORS = false
-enableXsrfProtection = false
-
-[browser]
-gatherUsageStats = false
-
-[theme]
-primaryColor = "#1E40AF"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-textColor = "#1F2937"
-
----
-
-# 3. Secrets Template
-# File: .streamlit/secrets.toml.template
-# Copy this to .streamlit/secrets.toml and add your actual API key
-
-GOOGLE_API_KEY = "your_google_ai_api_key_here"
-
----
-
-# 4. Environment Variables for Azure App Service
-# Set these in Azure Portal > Configuration > Application Settings
-
-GOOGLE_API_KEY=your_google_ai_api_key_here
-STREAMLIT_SERVER_HEADLESS=true
-STREAMLIT_SERVER_PORT=8000
-STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
