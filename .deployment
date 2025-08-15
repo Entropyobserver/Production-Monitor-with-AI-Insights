@@ -1,0 +1,49 @@
+# File: .deployment
+[config]
+SCM_DO_BUILD_DURING_DEPLOYMENT=true
+
+---
+
+# File: web.config
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
+    </handlers>
+    <httpPlatform 
+        processPath="D:\home\site\wwwroot\startup.sh"
+        arguments="" 
+        stdoutLogEnabled="true" 
+        stdoutLogFile="D:\home\LogFiles\python_stdout.log" 
+        startupTimeLimit="120" 
+        requestTimeout="00:04:00">
+      <environmentVariables>
+        <environmentVariable name="PORT" value="%HTTP_PLATFORM_PORT%" />
+      </environmentVariables>
+    </httpPlatform>
+  </system.webServer>
+</configuration>
+
+---
+
+# File: oryx-manifest.toml
+[build]
+virtualenv_name = "antenv"
+packages_dir = "__oryx_packages__"
+
+[python]
+version = "3.10"
+
+[deploy]
+startup_file = "startup.sh"
+
+---
+
+# File: runtime.txt
+python-3.10
+
+---
+
+# File: startup.txt (Alternative startup command)
+bash startup.sh
