@@ -112,13 +112,21 @@ def load_css():
         font-weight: 500;
         transition: all 0.2s ease;
     }}
+    .stDownloadButton > button {{
+        background: {DESIGN_SYSTEM['colors']['primary']} !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
 @st.cache_resource
 def init_ai():
-    import os
-    api_key = os.environ.get("GOOGLE_API_KEY", "")  
+    api_key = st.secrets.get("GOOGLE_API_KEY", "")
     if api_key:
         genai.configure(api_key=api_key)
         return genai.GenerativeModel('gemini-1.5-flash')
@@ -685,7 +693,7 @@ def add_export_section(df, stats, outliers, model):
         st.session_state.csv_data = None
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("📊 Generate PDF Report with AI", key="generate_pdf_btn", type="primary"):
+        if st.button("Generate PDF Report with AI", key="generate_pdf_btn", type="primary"):
             try:
                 with st.spinner("Generating PDF with AI analysis..."):
                     st.session_state.pdf_buffer = create_enhanced_pdf_report(df, stats, outliers, model)
@@ -703,7 +711,7 @@ def add_export_section(df, stats, outliers, model):
                 key="download_pdf_btn"
             )
     with col2:
-        if st.button("📈 Generate CSV Summary", key="generate_csv_btn"):
+        if st.button("Generate CSV Summary", key="generate_csv_btn", type="primary"):
             try:
                 st.session_state.csv_data = create_csv_export(df, stats)
                 st.success("✅ CSV summary generated successfully!")
@@ -721,13 +729,12 @@ def add_export_section(df, stats, outliers, model):
     with col3:
         csv_string = df.to_csv(index=False)
         st.download_button(
-            label="📋 Download Raw Data",
+            label="Download Raw Data",
             data=csv_string,
             file_name=f"raw_production_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
             key="download_raw_btn"
         )
-
 def main():
     load_css()
     st.markdown("""
