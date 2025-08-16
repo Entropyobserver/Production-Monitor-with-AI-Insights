@@ -16,6 +16,8 @@ import plotly.io as pio
 import tempfile
 import os
 import requests
+import warnings
+warnings.filterwarnings("ignore", message=".*secrets.*")
 
 DESIGN_SYSTEM = {
     'colors': {
