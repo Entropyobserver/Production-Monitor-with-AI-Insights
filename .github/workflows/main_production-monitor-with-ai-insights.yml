@@ -21,62 +21,39 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Create and start virtual environment
-        run: |
-          python -m venv antenv
-          source antenv/bin/activate
-          
-      - name: Install dependencies
-        run: |
-          source antenv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          
+      # 移除虚拟环境创建和依赖安装步骤，让Azure Oryx处理
       - name: Create Azure deployment files
         run: |
-          # Create startup command file
-          echo "python -m streamlit run app.py --server.port=8000 --server.address=0.0.0.0 --server.headless=true" > startup.txt
+          # Create startup script
+          cat > startup.sh << 'EOF'
+          #!/bin/bash
+          set -e
           
-          # Create .deployment file for Azure
-          cat > .deployment << EOF
-          [config]
-          SCM_DO_BUILD_DURING_DEPLOYMENT=true
-          EOF
+          echo "Starting Production Monitor..."
+          echo "Current working directory: $(pwd)"
+          echo "Python version: $(python --version)"
           
-          # Create web.config for proper Azure handling
-          cat > web.config << EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
-              </handlers>
-              <httpPlatform processPath="python" arguments="-m streamlit run app.py --server.port=%HTTP_PLATFORM_PORT% --server.address=0.0.0.0 --server.headless=true" stdoutLogEnabled="true" stdoutLogFile="D:\home\LogFiles\python_stdout.log" startupTimeLimit="60" requestTimeout="00:04:00"/>
-            </system.webServer>
-          </configuration>
-          EOF
-          
-          # Create oryx build manifest
-          cat > oryx-manifest.toml << EOF
-          [build]
-          virtualenv_name = "antenv"
-          packages_dir = "__oryx_packages__"
-          
-          [python]
-          version = "3.10"
-          
-          [deploy]
-          startup_file = "startup.txt"
-          EOF
-          
-          # Create .streamlit directory and config
+          # Create .streamlit directory
           mkdir -p .streamlit
-          cat > .streamlit/config.toml << EOF
+          
+          # Create secrets.toml from environment variables
+          if [ ! -z "$GOOGLE_API_KEY" ]; then
+              cat > .streamlit/secrets.toml << SECRETS_EOF
+          GOOGLE_API_KEY = "$GOOGLE_API_KEY"
+          SECRETS_EOF
+              echo "✓ API key configured"
+          else
+              echo "⚠ No API key found - AI features disabled"
+          fi
+          
+          # Create Streamlit config
+          cat > .streamlit/config.toml << CONFIG_EOF
           [server]
           headless = true
           port = 8000
           enableCORS = false
           enableXsrfProtection = false
+          maxUploadSize = 50
           
           [browser]
           gatherUsageStats = false
@@ -86,14 +63,31 @@ jobs:
           backgroundColor = "#FFFFFF"
           secondaryBackgroundColor = "#F8FAFC"
           textColor = "#1F2937"
+          CONFIG_EOF
+          
+          # Start Streamlit
+          exec python -m streamlit run app.py \
+              --server.port=8000 \
+              --server.address=0.0.0.0 \
+              --server.headless=true
           EOF
           
-          # Create secrets template (will be populated by startup script)
-          echo 'GOOGLE_API_KEY = ""' > .streamlit/secrets.toml.template
+          chmod +x startup.sh
+          
+          # Create .deployment file for Azure Oryx
+          cat > .deployment << EOF
+          [config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT=true
+          EOF
+          
+          # Create runtime.txt to specify Python version
+          echo "python-3.10" > runtime.txt
 
       - name: Zip artifact for deployment
         run: |
-          zip -r release.zip . -x "*.git*" "__pycache__/*" "*.pyc" "antenv/*" ".venv/*" "venv/*"
+          # Include everything except git and cache files
+          # 重要：不排除任何Python相关文件，让Azure Oryx处理构建
+          zip -r release.zip . -x "*.git*" "__pycache__/*" "*.pyc" ".pytest_cache/*"
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
