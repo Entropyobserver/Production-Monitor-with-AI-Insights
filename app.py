@@ -61,12 +61,16 @@ def load_css():
         font-size: 2.2rem;
         margin: 0;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        word-wrap: break-word;
+        line-height: 1.2;
     }}
     .main-subtitle {{
         {DESIGN_SYSTEM['fonts']['body']}
         font-size: 1rem;
         opacity: 0.9;
         margin-top: 0.5rem;
+        word-wrap: break-word;
+        line-height: 1.4;
     }}
     .metric-card {{
         background: white;
@@ -83,6 +87,8 @@ def load_css():
         margin: 2rem 0 1rem 0;
         padding-bottom: 0.5rem;
         border-bottom: 2px solid {DESIGN_SYSTEM['colors']['primary']};
+        word-wrap: break-word;
+        line-height: 1.3;
     }}
     .chart-container {{
         background: white;
@@ -97,6 +103,8 @@ def load_css():
         border-radius: 8px;
         padding: 1rem;
         color: {DESIGN_SYSTEM['colors']['success']};
+        word-wrap: break-word;
+        line-height: 1.4;
     }}
     .alert-warning {{
         background: linear-gradient(135deg, {DESIGN_SYSTEM['colors']['warning']}15, {DESIGN_SYSTEM['colors']['warning']}25);
@@ -104,6 +112,19 @@ def load_css():
         border-radius: 8px;
         padding: 1rem;
         color: {DESIGN_SYSTEM['colors']['warning']};
+        word-wrap: break-word;
+        line-height: 1.4;
+    }}
+    .quality-dates {{
+        font-size: 0.85em;
+        margin-top: 0.5rem;
+        word-wrap: break-word;
+        line-height: 1.3;
+        max-height: 150px;
+        overflow-y: auto;
+        padding: 0.3rem;
+        background: rgba(255,255,255,0.3);
+        border-radius: 4px;
     }}
     .stButton > button {{
         background: {DESIGN_SYSTEM['colors']['primary']};
@@ -113,6 +134,7 @@ def load_css():
         padding: 0.5rem 1rem;
         font-weight: 500;
         transition: all 0.2s ease;
+        word-wrap: break-word;
     }}
     .stDownloadButton > button {{
         background: {DESIGN_SYSTEM['colors']['primary']} !important;
@@ -122,6 +144,7 @@ def load_css():
         padding: 0.5rem 1rem !important;
         font-weight: 500 !important;
         transition: all 0.2s ease !important;
+        word-wrap: break-word !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -873,11 +896,14 @@ def main():
         for i, (material, info) in enumerate(outliers.items()):
             with cols[i]:
                 if info['count'] > 0:
-                    if len(info['dates']) <= 5:
-                        dates_str = ", ".join(info['dates'])
-                    else:
-                        dates_str = f"{', '.join(info['dates'][:3])}, +{len(info['dates'])-3} more"
-                    st.markdown(f'<div class="alert-warning"><strong>{material.title()}</strong><br>{info["count"]} outliers detected<br>Normal range: {info["range"]}<br><small>Dates: {dates_str}</small></div>', unsafe_allow_html=True)
+                    # Show all dates for outliers
+                    dates_str = ", ".join(info['dates'])
+                    st.markdown(f'''<div class="alert-warning">
+                        <strong>{material.title()}</strong><br>
+                        {info["count"]} outliers detected<br>
+                        Normal range: {info["range"]}<br>
+                        <div class="quality-dates">Dates: {dates_str}</div>
+                    </div>''', unsafe_allow_html=True)
                 else:
                     st.markdown(f'<div class="alert-success"><strong>{material.title()}</strong><br>All values normal</div>', unsafe_allow_html=True)
         add_export_section(df, stats, outliers, model)
